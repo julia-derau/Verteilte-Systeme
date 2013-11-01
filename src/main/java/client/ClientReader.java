@@ -17,7 +17,6 @@ public class ClientReader {
 	
 	public InetAddress getProxyHost() {
 		try {
-			//System.out.println(InetAddress.getByName(config.getString("proxy.host")));
 			return InetAddress.getByName(config.getString("proxy.host"));
 			
 		} catch (UnknownHostException e) {

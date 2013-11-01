@@ -23,17 +23,22 @@ import message.Response;
 import message.request.BuyRequest;
 import message.request.CreditsRequest;
 import message.request.DownloadTicketRequest;
+import message.request.InfoRequest;
 import message.request.ListRequest;
 import message.request.LoginRequest;
 import message.request.LogoutRequest;
 import message.request.UploadRequest;
+import message.request.VersionRequest;
 import message.response.BuyResponse;
 import message.response.CreditsResponse;
 import message.response.DownloadTicketResponse;
+import message.response.InfoResponse;
 import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.LoginResponse.Type;
 import message.response.MessageResponse;
+import message.response.VersionResponse;
+import model.DownloadTicket;
 
 public class Proxy implements IProxy, Runnable, Closeable {
 	private Shell shell;
@@ -45,7 +50,6 @@ public class Proxy implements IProxy, Runnable, Closeable {
 	private Socket socket;
 	private ObjectInputStream inputStream;
 	private ObjectOutputStream outputStream;
-	private Socket socketProxy;
 	private Set<FileServerInfo> fileservers;
 
 	public Proxy(Shell shell, ProxyReader pReader, Set<UserInfo> users,
@@ -145,21 +149,118 @@ public class Proxy implements IProxy, Runnable, Closeable {
 
 	@Override
 	public Response download(DownloadTicketRequest request) throws IOException {
+		FileServerInfo lastFS = getLowestUsageFS();
 
-		/**
-		 * File temp = null; for(File f : this.files) {
-		 * if(f.getName().equals(request.getFilename())) { temp = f; } } String
-		 * s = ChecksumUtils.generateChecksum(this.user.getName(),
-		 * request.getFilename(), 1, temp.length()); request. return new
-		 * DownloadTicketResponse(ticket)
-		 **/
-		return null;
+		Socket s = null;
+		ObjectOutputStream outputVersionStream = null;
+		ObjectInputStream inputVersionStream = null;
+
+
+		try {
+			s = new Socket(lastFS.getAddress(), lastFS.getPort());
+			System.out.println(s.getPort());
+			outputVersionStream = new ObjectOutputStream(s.getOutputStream());
+			inputVersionStream = new ObjectInputStream(s.getInputStream());
+
+			outputVersionStream.writeObject(new VersionRequest(request.getFilename()));
+
+			Object o = inputVersionStream.readObject();
+			VersionResponse response = (VersionResponse) o;
+
+
+			outputVersionStream.writeObject(new InfoRequest(request.getFilename()));
+			Object o1 = inputVersionStream.readObject();
+
+			InfoResponse infoResponse = (InfoResponse) o1;
+
+			String checkSum = ChecksumUtils.generateChecksum(user.getName(), response.getFilename(), response.getVersion(), infoResponse.getSize());
+			return new DownloadTicketResponse(new DownloadTicket(this.user.getName(),request.getFilename(), checkSum, lastFS.getAddress(), lastFS.getPort()));
+
+		} catch (IOException | ClassNotFoundException ex1) {
+			ex1.printStackTrace();
+			return new MessageResponse("Irgendwos hot ned passt :("
+					+ ex1.getMessage());
+		} finally {
+			if (s != null) {
+				try {
+					s.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			if (outputVersionStream != null) {
+				try {
+					outputVersionStream.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			if (inputVersionStream != null) {
+				try {
+					inputVersionStream.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	@Override
 	public MessageResponse upload(UploadRequest request) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		for(FileServerInfo temp : this.fileservers) {		
+			Socket s = null;
+			ObjectOutputStream outputStream = null;
+			ObjectInputStream inputStream = null;
+
+			try {
+				System.out.println("temp.getaddress"+temp.getAddress() + "temp.getPort"+temp.getPort());
+				s = new Socket(temp.getAddress(), temp.getPort());
+				System.out.println(s.getPort());
+				outputStream = new ObjectOutputStream(s.getOutputStream());
+				inputStream = new ObjectInputStream(s.getInputStream());
+				System.out.println("komm ich hier her?");
+
+				outputStream.writeObject(new UploadRequest(request.getFilename(),request.getVersion(),request.getContent()));
+				System.out.println("komm ich hier her oder hier?");
+
+				Object o = inputStream.readObject();
+				System.out.println("object o??" + o);
+				return (MessageResponse) o;
+			} catch (IOException | ClassNotFoundException ex1) {
+				ex1.printStackTrace();
+				return new MessageResponse("Irgendwos hot ned passt :("
+						+ ex1.getMessage());
+			} finally {
+				if (s != null) {
+					try {
+						s.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				if (outputStream != null) {
+					try {
+						outputStream.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				if (inputStream != null) {
+					try {
+						inputStream.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		return new MessageResponse("Upload was not successful");
 	}
 
 	@Override

@@ -1,5 +1,8 @@
 package client;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -7,6 +10,8 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import proxy.FileServerInfo;
 import cli.Command;
 import cli.Shell;
 
@@ -14,12 +19,16 @@ import message.Request;
 import message.Response;
 import message.request.BuyRequest;
 import message.request.CreditsRequest;
+import message.request.DownloadFileRequest;
 import message.request.DownloadTicketRequest;
 import message.request.ListRequest;
 import message.request.LoginRequest;
 import message.request.LogoutRequest;
 import message.request.UploadRequest;
 import message.response.CreditsResponse;
+import message.response.DownloadFileResponse;
+import message.response.DownloadTicketResponse;
+import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.LoginResponse.Type;
 import message.response.MessageResponse;
@@ -113,7 +122,61 @@ public class ClientCli implements IClientCli {
 		this.outputStream.writeObject(request);
 
 		try {
-			return (Response) this.inputStream.readObject();
+			DownloadTicketResponse downloadTicketResponse = (DownloadTicketResponse) this.inputStream.readObject();
+			Socket s = null;
+			ObjectOutputStream outputStream = null;
+			ObjectInputStream inputStream = null;
+
+			try {
+				s = new Socket(downloadTicketResponse.getTicket().getAddress(), downloadTicketResponse.getTicket().getPort());
+				System.out.println(s.getPort());
+				outputStream = new ObjectOutputStream(s.getOutputStream());
+				inputStream = new ObjectInputStream(s.getInputStream());
+
+				outputStream.writeObject(new DownloadFileRequest(downloadTicketResponse.getTicket()));
+
+				Object o = inputStream.readObject();
+				DownloadFileResponse downloadFile = (DownloadFileResponse) o;
+				
+				File dir = new File(reader.getDownloadDir());
+
+				File temp = new File(dir, filename);
+				FileOutputStream fileInputStream = new FileOutputStream(temp);
+
+				fileInputStream.write(downloadFile.getContent());
+				fileInputStream.close();
+				return new MessageResponse("File successfully downloaded.");
+
+			} catch (IOException | ClassNotFoundException ex1) {
+				ex1.printStackTrace();
+				return new MessageResponse("Irgendwos hot ned passt :("
+						+ ex1.getMessage());
+			} finally {
+				if (s != null) {
+					try {
+						s.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				if (outputStream != null) {
+					try {
+						outputStream.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				if (inputStream != null) {
+					try {
+						inputStream.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -124,8 +187,19 @@ public class ClientCli implements IClientCli {
 	@Override
 	@Command
 	public MessageResponse upload(String filename) throws IOException {
-		// TODO PARAMETER
-		Request request = new UploadRequest(filename, 0, null);
+		File f = new File(reader.getDownloadDir());
+		File[] fileArray = f.listFiles();
+		File temp = null;
+		for(int i = 0; i < fileArray.length; i++) {
+			if(fileArray[i].getName().equals(filename)) {
+				temp = fileArray[i];
+			}
+		}
+		FileInputStream fileInputStream = new FileInputStream(temp);
+	    byte[] data = new byte[(int) temp.length()];
+	    fileInputStream.read(data);
+	    fileInputStream.close();
+		Request request = new UploadRequest(filename, 1, data);
 		this.outputStream.writeObject(request);
 
 		try {
