@@ -5,6 +5,12 @@ import java.net.UnknownHostException;
 
 import util.Config;
 
+/**
+ * @author juliadaurer
+ * 
+ * Reads the attributes of FileServer out of the Config 
+ *
+ */
 public class FileServerReader {
 	private Config config; 
 	

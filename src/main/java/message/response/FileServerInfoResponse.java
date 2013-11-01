@@ -35,13 +35,4 @@ public class FileServerInfoResponse implements Response {
 	public List<FileServerInfo> getFileServerInfo() {
 		return fileServerInfo;
 	}
-	public void addFileServer(FileServerInfo f1) {
-		if(!fileServerInfo.contains(f1)) {
-			this.fileServerInfo.add(f1);
-		}
-	}
-	public void removeFileServer(FileServerInfo f1) {
-		this.fileServerInfo.remove(f1);
-
-	}
 }

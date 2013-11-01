@@ -1,9 +1,8 @@
 package util;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import cli.Shell;
+import client.ClientCli;
+import client.ClientReader;
 import client.IClientCli;
 import proxy.IProxyCli;
 import proxy.ProxyCli;
@@ -26,9 +25,10 @@ public class ComponentFactory {
 	 * @throws Exception if an exception occurs
 	 */
 	public IClientCli startClient(Config config, Shell shell) throws Exception {
-		// TODO: create a new client instance (including a Shell) and start it
-		return null;
+		ClientReader reader = new ClientReader(config);
 		
+		IClientCli client = new ClientCli(reader, shell);
+		return client;
 	}
 
 	/**
@@ -42,8 +42,8 @@ public class ComponentFactory {
 	public IProxyCli startProxy(Config config, Shell shell) throws Exception {	
 		ProxyReader reader = new ProxyReader(config);
 		
-		IProxyCli iProxy = new ProxyCli(reader, shell);
-		return iProxy;
+		IProxyCli proxy = new ProxyCli(reader, shell);
+		return proxy;
 	}
 
 	/**
@@ -56,7 +56,8 @@ public class ComponentFactory {
 	 */
 	public IFileServerCli startFileServer(Config config, Shell shell) throws Exception {
 		FileServerReader reader = new FileServerReader(config);
-		IFileServerCli iFile = new FileServerCli(reader, shell);
-		return iFile;
+		
+		IFileServerCli file = new FileServerCli(reader, shell);
+		return file;
 	}
 }

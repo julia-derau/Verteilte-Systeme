@@ -15,11 +15,10 @@ public class ProxyNotifier implements Closeable {
 	private DatagramPacket datagramPacket;
 
 	public ProxyNotifier(long period, int tcpPort, InetAddress proxyAddress, int udpProxyPort) throws SocketException {
-		// TCP Port von FileServer, TCP Port wartet auf Anfragen von Client
-		// UDP Proxy Port
 		this.socket = new DatagramSocket();
 		this.timer = new Timer();
-		String message = "!alive"+Integer.toString(tcpPort);
+		
+		String message = "!alive "+Integer.toString(tcpPort);
 		this.datagramPacket = new DatagramPacket(message.getBytes(), message.getBytes().length, proxyAddress, udpProxyPort);
 		
 		TimerTask task = new TimerTask() {
@@ -27,7 +26,6 @@ public class ProxyNotifier implements Closeable {
 			public void run() {
 				try {
 					socket.send(datagramPacket);
-					System.out.println("Alive - Send :P ");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -39,7 +37,7 @@ public class ProxyNotifier implements Closeable {
 
 
 	@Override
-	public void close() {
+	public void close() {	
 		timer.cancel();
 		if(!socket.isClosed()) {
 			socket.close();

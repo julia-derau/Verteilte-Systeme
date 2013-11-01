@@ -4,20 +4,31 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
 import cli.Shell;
+import server.FileServer;
 import util.ComponentFactory;
 import util.Config;
 
+/**
+ * @author juliadaurer
+ *
+ * Main Class for FileServer
+ *
+ */
 public class Fileserver {
 
 	public static void main(String[] args) throws Exception {
 		ComponentFactory fac = new ComponentFactory();
+		Shell shell = new Shell("fileServer", new DataOutputStream(System.out), new DataInputStream(System.in));
 		Config config;
+		
 		if(args.length == 1) {
-			config = new Config(args[0]);
+			System.out.println("fs" + args[0]);
+			config = new Config("fs"+args[0]);
 		} else {
 			config = new Config("fs1");
 		}
-		Shell shell = new Shell("FileServer", new DataOutputStream(System.out), new DataInputStream(System.in));
+		
+		// Start FileServer
 		fac.startFileServer(config, shell);
 		
 	}

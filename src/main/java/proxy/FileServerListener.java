@@ -4,60 +4,55 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Scanner;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import message.Response;
-import message.response.FileServerInfoResponse;
-import model.FileServerInfo;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+import proxy.FileServerInfo;
 import javax.xml.ws.WebServiceException;
 
 import com.sun.xml.internal.ws.Closeable;
 
-public class FileServerListener implements Runnable, Closeable {
+public class FileServerListener implements Runnable {
 	private DatagramSocket socket;
 	private DatagramPacket datagramPacket;
-	private DatagramPacket originalPacket;
-	private ExecutorService service = Executors.newCachedThreadPool();
 	private Timer timer;
-	private FileServerInfoResponse fileserver;
+	private Set<FileServerInfo> fileserver;
+	private HashMap<FileServerInfo, Long> fileServerAliveTime;
+	private int timeOut;
 
 
-	public FileServerListener(final FileServerInfoResponse fileserver, long checkPeriod, int tcpPort, int udpPort) throws SocketException {
+
+	public FileServerListener(Set<FileServerInfo> fileserver, int checkPeriod, int tcpPort, int udpPort, int timeOut) throws SocketException {
 		this.socket = new DatagramSocket(udpPort);
 		this.timer = new Timer();
 		this.fileserver = fileserver;
-		String message = "!alive" + Integer.toString(tcpPort);
-		
-		this.originalPacket = new DatagramPacket(message.getBytes(), message.getBytes().length);		
+		this.fileServerAliveTime = new HashMap<FileServerInfo, Long>();
+		this.timeOut = timeOut;
+		String message = "!alive 9999999999";
 
 		this.datagramPacket = new DatagramPacket(message.getBytes(), message.getBytes().length);
-		service.execute(this);
 		TimerTask task = new TimerTask() {
 
 			@Override
 			public void run() {
-				for(FileServerInfo f1 : fileserver.getFileServerInfo()) {
-					System.out.println("Paket alle drei Sekunden eingelangt");
-					
-					try {
-						socket.receive(datagramPacket);
-						// TODO FEHLER 
-						System.out.println("!!!! " + originalPacket.getPort() + "!!!!!" + datagramPacket.getPort());
-						if(originalPacket.getPort() == datagramPacket.getPort()) {
-							System.out.println("Oh nein!:O  Kein Paket da!");
-							fileserver.removeFileServer(f1);
+				synchronized(FileServerListener.this.fileserver) {
+					for(FileServerInfo f1 : FileServerListener.this.fileserver) {
+						if(fileServerAliveTime.containsKey(f1)) {
+							long lastTime = fileServerAliveTime.get(f1);
+
+							if((System.currentTimeMillis()-lastTime) > FileServerListener.this.timeOut) {
+								f1.setOnline(false);
+								FileServerListener.this.fileServerAliveTime.remove(f1);
+								System.out.println("Paket nicht alle drei Sekunden eingelangt");
+							}
+
 						}
-						
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}	
+
+					}	
+				}
 			}	
 		};
 		timer.schedule(task, 0, checkPeriod);
@@ -65,31 +60,50 @@ public class FileServerListener implements Runnable, Closeable {
 	}
 
 	@Override
-	public void close() throws WebServiceException {
-		timer.cancel();
-		if(!socket.isClosed()) {
-			socket.close();
-		}
-	}
-
-	@Override
 	public void run() {
 		while(true) {
 			try {
 				this.socket.receive(datagramPacket);
-				System.out.println("Paket bekommen :) ");
-				System.out.println(new String(datagramPacket.getData(), datagramPacket.getOffset(), datagramPacket.getLength()));
+				String alive = new String(datagramPacket.getData(), datagramPacket.getOffset(), datagramPacket.getLength());
+				Scanner sc = new Scanner(alive);
+				int port = 0;
+				
+				if(sc.hasNext()) {
+					String msg = sc.next();
+					if(sc.hasNextInt()) {
+						port = sc.nextInt();
+						
+						FileServerInfo temp = new FileServerInfo(datagramPacket.getAddress(), port,0, false);
 
-				// TODO USAGE HERAUSFINDEN!!!
-				FileServerInfo temp = new FileServerInfo(datagramPacket.getAddress(), datagramPacket.getPort(),datagramPacket.getOffset(), true);
-				
-				fileserver.addFileServer(temp);
-				
+						synchronized (fileserver) {
+							if(!fileserver.contains(temp)) {
+								fileserver.add(temp);
+							}
+
+							for(FileServerInfo f1 : fileserver) {
+								if(f1.equals(temp)) {
+									f1.setOnline(true);
+									fileServerAliveTime.put(f1, System.currentTimeMillis());
+									break;
+								}
+							}
+						}
+					} else {
+						System.out.println("ERROOOOOOR");
+					}
+				} else {
+					System.out.println("ERROOOOOOR");
+				}
 
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}
+			} /*finally {
+				timer.cancel();
+				if(!socket.isClosed()) {
+					socket.close();
+				}
+			}*/
 		}
 
 	}

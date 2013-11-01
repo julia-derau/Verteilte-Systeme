@@ -8,6 +8,12 @@ import util.ComponentFactory;
 import util.Config;
 
 
+/**
+ * @author juliadaurer
+ *
+ * Main Class for Proxy
+ *
+ */
 public class Proxy {
 
 	public static void main(String[] args) throws Exception {
