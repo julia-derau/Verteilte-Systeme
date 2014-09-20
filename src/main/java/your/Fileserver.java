@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
 import cli.Shell;
-import server.FileServer;
 import util.ComponentFactory;
 import util.Config;
 
@@ -22,7 +21,6 @@ public class Fileserver {
 		Config config;
 		
 		if(args.length == 1) {
-			System.out.println("fs" + args[0]);
 			config = new Config("fs"+args[0]);
 		} else {
 			config = new Config("fs1");

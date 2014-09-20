@@ -27,11 +27,9 @@ public class UserReader {
 		try {
 			this.properties.load(new FileInputStream("src/main/resources/user.properties"));
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println(e.getMessage());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println(e.getMessage());
 		}
 		Set<String> set = this.properties.stringPropertyNames();
 		Set<UserInfo> userSet = new HashSet<UserInfo>();

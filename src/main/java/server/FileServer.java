@@ -1,5 +1,6 @@
 package server;
 
+import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,6 +11,8 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.Set;
+
+import util.ChecksumUtils;
 
 import message.Request;
 import message.Response;
@@ -24,7 +27,7 @@ import message.response.ListResponse;
 import message.response.MessageResponse;
 import message.response.VersionResponse;
 
-public class FileServer implements IFileServer, Runnable {
+public class FileServer implements IFileServer, Runnable, Closeable {
 	private Set<String> filenames;
 	private Set<File> files = new HashSet<File>();
 	private ObjectOutputStream outputStream;
@@ -36,14 +39,13 @@ public class FileServer implements IFileServer, Runnable {
 		this.filenames = new HashSet<String>();
 		this.socket = socket;
 		this.reader=reader;
-		
+
 		try {
 			this.outputStream = new ObjectOutputStream(this.socket.getOutputStream());
 			this.inputStream = new ObjectInputStream(this.socket.getInputStream());
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Error occured during the instanziation of the ObjectOutput/Input - Stream in Fileserver");
 		}
 	}
 
@@ -61,13 +63,18 @@ public class FileServer implements IFileServer, Runnable {
 	@Override
 	public Response download(DownloadFileRequest request) throws IOException {
 		list();
+
 		for(File f : this.files) {
 			if(f.getName().equals(request.getTicket().getFilename())) {
-				  FileInputStream fileInputStream = new FileInputStream(f);
-			      byte[] data = new byte[(int) f.length()];
-			      fileInputStream.read(data);
-			      fileInputStream.close();
-				return new DownloadFileResponse(request.getTicket(), data);
+				VersionResponse response = (VersionResponse) version(new VersionRequest(f.getName()));
+				String checkSum = ChecksumUtils.generateChecksum(request.getTicket().getUsername(), f.getName(), response.getVersion(), f.length());
+				if(ChecksumUtils.verifyChecksum(request.getTicket().getUsername(), f, 1, checkSum)) {
+					FileInputStream fileInputStream = new FileInputStream(f);
+					byte[] data = new byte[(int) f.length()];
+					fileInputStream.read(data);
+					fileInputStream.close();
+					return new DownloadFileResponse(request.getTicket(), data);
+				}
 			}
 		}
 		return new MessageResponse("File not found!");
@@ -89,11 +96,10 @@ public class FileServer implements IFileServer, Runnable {
 		list();
 		for(String f : this.filenames) {
 			if(f.equals(request.getFilename())) {
-				//TODO VERSION NUMMER?
 				return new VersionResponse(request.getFilename(), 1);
 			}
 		}
-		return null;
+		return new MessageResponse("File is not there.");
 	}
 
 	@Override
@@ -105,6 +111,7 @@ public class FileServer implements IFileServer, Runnable {
 
 		fileInputStream.write(request.getContent());
 		fileInputStream.close();
+
 		return new MessageResponse("File successfully uploaded.");
 	}
 
@@ -124,11 +131,26 @@ public class FileServer implements IFileServer, Runnable {
 
 			} catch(EOFException e) {
 				return;
-			}catch (IOException | ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (IOException e) {
+				return;
+			} catch(ClassNotFoundException e) {
+				System.err.println("Error occured while reading/writing at the ObjectOutput/Input - Stream in FileServer");
+				return;
 			} finally {
-
+				if (outputStream != null) {
+					try {
+						outputStream.close();
+					} catch (IOException e) {
+						System.err.println("Error occured while closing the ObjectOutputStream in FileServer");
+					}
+				}
+				if (inputStream != null) {
+					try {
+						inputStream.close();
+					} catch (IOException e) {
+						System.err.println("Error occured while closing the ObjectInputStream in FileServer");
+					}
+				}
 			}
 		}
 
@@ -143,7 +165,6 @@ public class FileServer implements IFileServer, Runnable {
 				return download(downloadRequest);
 			} else if (request instanceof ListRequest) {
 				return list();
-
 			} else if (request instanceof VersionRequest) {
 				VersionRequest versionRequest = (VersionRequest) request;
 				return version(versionRequest);
@@ -152,10 +173,17 @@ public class FileServer implements IFileServer, Runnable {
 				return info(infoRequest);
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("Error occured while instanceof of the Response in FileServer");
 		}
 		return new MessageResponse("Error");
+	}
+
+	@Override
+	public void close() throws IOException {
+		if(!socket.isClosed()) {
+			socket.close();
+		}
+
 	}
 
 }

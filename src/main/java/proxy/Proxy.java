@@ -2,18 +2,11 @@ package proxy;
 
 import java.io.Closeable;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.util.HashSet;
 import java.util.Set;
-
-import cli.Command;
-import cli.Shell;
 
 import util.ChecksumUtils;
 import util.Config;
@@ -33,7 +26,6 @@ import message.response.BuyResponse;
 import message.response.CreditsResponse;
 import message.response.DownloadTicketResponse;
 import message.response.InfoResponse;
-import message.response.ListResponse;
 import message.response.LoginResponse;
 import message.response.LoginResponse.Type;
 import message.response.MessageResponse;
@@ -41,232 +33,117 @@ import message.response.VersionResponse;
 import model.DownloadTicket;
 
 public class Proxy implements IProxy, Runnable, Closeable {
-	private Shell shell;
-	private ProxyReader pReader;
 	private Config config;
 	private Set<UserInfo> users;
 	private UserInfo user;
-	private Set<File> files;
 	private Socket socket;
 	private ObjectInputStream inputStream;
 	private ObjectOutputStream outputStream;
 	private Set<FileServerInfo> fileservers;
 
-	public Proxy(Shell shell, ProxyReader pReader, Set<UserInfo> users,
+	public Proxy(ProxyReader pReader, Set<UserInfo> users,
 			Set<FileServerInfo> fileserver, Socket socket) throws IOException {
 		this.config = new Config("user");
-		this.shell = shell;
-		this.pReader = pReader;
 		this.users = users;
-		this.files = new HashSet<File>();
 		this.socket = socket;
-		this.outputStream = new ObjectOutputStream(
-				this.socket.getOutputStream());
+		this.outputStream = new ObjectOutputStream(this.socket.getOutputStream());
 		this.inputStream = new ObjectInputStream(this.socket.getInputStream());
 		this.fileservers = fileserver;
-
 	}
 
 	@Override
 	public LoginResponse login(LoginRequest request) throws IOException {
-		if (config.getString(request.getUsername() + ".password").equals(
-				request.getPassword())) {
-			for (UserInfo u : users) {
-				if (u.getName().equals(request.getUsername())) {
-					this.user = u;
-					u.setOnline(true);
-					this.users.add(u);
+		synchronized(this.users) {
+			if(this.users.contains(new UserInfo(request.getUsername(), 0, true))) {
+				if (config.getString(request.getUsername() + ".password").equals(request.getPassword())) {
+					for (UserInfo u : this.users) {
+						if (u.getName().equals(request.getUsername())) {
+							this.user = u;
+							u.setOnline(true);
+							this.users.add(u);
+						}
+
+					}
+					return new LoginResponse(Type.SUCCESS);
 				}
 			}
-			return new LoginResponse(Type.SUCCESS);
 		}
 		return new LoginResponse(Type.WRONG_CREDENTIALS);
 	}
 
 	@Override
 	public Response credits() throws IOException {
-		return new CreditsResponse(this.user.getCredits());
+		return new MessageResponse("You have "+this.user.getCredits() + " left.");
 	}
 
 	@Override
 	public Response buy(BuyRequest credits) throws IOException {
-		this.user.setCredits(this.user.getCredits() - credits.getCredits());
-		return new BuyResponse(this.user.getCredits());
+		this.user.setCredits(this.user.getCredits() + credits.getCredits());
+		return new MessageResponse("You now have "+this.user.getCredits() + " credits.");
 	}
 
 	@Override
 	public Response list() {
-		FileServerInfo temp = getLowestUsageFS();
-		Socket s = null;
-		ObjectOutputStream outputStream = null;
-		ObjectInputStream inputStream = null;
-
-		try {
-			System.out.println("temp.getaddress"+temp.getAddress() + "temp.getPort"+temp.getPort());
-			s = new Socket(temp.getAddress(), temp.getPort());
-			System.out.println(s.getPort());
-			outputStream = new ObjectOutputStream(s.getOutputStream());
-			inputStream = new ObjectInputStream(s.getInputStream());
-			System.out.println("komm ich hier her?");
-
-			outputStream.writeObject(new ListRequest());
-			System.out.println("komm ich hier her oder hier?");
-
-			Object o = inputStream.readObject();
-			System.out.println("object o??" + o);
-			return (ListResponse) o;
-		} catch (IOException | ClassNotFoundException ex1) {
-			ex1.printStackTrace();
-			return new MessageResponse("Irgendwos hot ned passt :("
-					+ ex1.getMessage());
-		} finally {
-			if (s != null) {
-				try {
-					s.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			if (outputStream != null) {
-				try {
-					outputStream.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			if (inputStream != null) {
-				try {
-					inputStream.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
+		FileServerInfo lastFS = getLowestUsageFS();
+		if(lastFS == null) {
+			return new MessageResponse("No FileServer connected");
 		}
+		return sendAndReceiveResponse(new ListRequest(), lastFS);
 	}
 
 	@Override
 	public Response download(DownloadTicketRequest request) throws IOException {
 		FileServerInfo lastFS = getLowestUsageFS();
-
-		Socket s = null;
-		ObjectOutputStream outputVersionStream = null;
-		ObjectInputStream inputVersionStream = null;
-
-
-		try {
-			s = new Socket(lastFS.getAddress(), lastFS.getPort());
-			System.out.println(s.getPort());
-			outputVersionStream = new ObjectOutputStream(s.getOutputStream());
-			inputVersionStream = new ObjectInputStream(s.getInputStream());
-
-			outputVersionStream.writeObject(new VersionRequest(request.getFilename()));
-
-			Object o = inputVersionStream.readObject();
-			VersionResponse response = (VersionResponse) o;
-
-
-			outputVersionStream.writeObject(new InfoRequest(request.getFilename()));
-			Object o1 = inputVersionStream.readObject();
-
-			InfoResponse infoResponse = (InfoResponse) o1;
-
-			String checkSum = ChecksumUtils.generateChecksum(user.getName(), response.getFilename(), response.getVersion(), infoResponse.getSize());
-			return new DownloadTicketResponse(new DownloadTicket(this.user.getName(),request.getFilename(), checkSum, lastFS.getAddress(), lastFS.getPort()));
-
-		} catch (IOException | ClassNotFoundException ex1) {
-			ex1.printStackTrace();
-			return new MessageResponse("Irgendwos hot ned passt :("
-					+ ex1.getMessage());
-		} finally {
-			if (s != null) {
-				try {
-					s.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			if (outputVersionStream != null) {
-				try {
-					outputVersionStream.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			if (inputVersionStream != null) {
-				try {
-					inputVersionStream.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
+		if(lastFS == null) {
+			return new MessageResponse("No FileServer connected");
 		}
+
+		Response vResponse = sendAndReceiveResponse(new VersionRequest(request.getFilename()), lastFS);
+		VersionResponse version = null;
+
+		if(vResponse instanceof VersionResponse) {
+			version = (VersionResponse) vResponse;
+		} else {
+			return vResponse;
+		}
+
+		Response iResponse = sendAndReceiveResponse(new InfoRequest(request.getFilename()), lastFS);
+		InfoResponse info = null;
+		if(iResponse instanceof InfoResponse) {
+			info = (InfoResponse) iResponse;
+		} else {
+			return new MessageResponse("Wrong InfoResponse during Download in Proxy");
+		}
+
+		if(info.getSize()<= this.user.getCredits()) {
+			this.user.setCredits(this.user.getCredits()-info.getSize());
+			lastFS.setUsage(lastFS.getUsage() + info.getSize());
+
+			String checkSum = ChecksumUtils.generateChecksum(user.getName(), version.getFilename(), version.getVersion(), info.getSize());
+			return new DownloadTicketResponse(new DownloadTicket(this.user.getName(),request.getFilename(), checkSum, lastFS.getAddress(), lastFS.getPort()));
+		}
+		return new MessageResponse("You don't have enough credits!");
 	}
 
 	@Override
 	public MessageResponse upload(UploadRequest request) throws IOException {
-		for(FileServerInfo temp : this.fileservers) {		
-			Socket s = null;
-			ObjectOutputStream outputStream = null;
-			ObjectInputStream inputStream = null;
-
-			try {
-				System.out.println("temp.getaddress"+temp.getAddress() + "temp.getPort"+temp.getPort());
-				s = new Socket(temp.getAddress(), temp.getPort());
-				System.out.println(s.getPort());
-				outputStream = new ObjectOutputStream(s.getOutputStream());
-				inputStream = new ObjectInputStream(s.getInputStream());
-				System.out.println("komm ich hier her?");
-
-				outputStream.writeObject(new UploadRequest(request.getFilename(),request.getVersion(),request.getContent()));
-				System.out.println("komm ich hier her oder hier?");
-
-				Object o = inputStream.readObject();
-				System.out.println("object o??" + o);
-				return (MessageResponse) o;
-			} catch (IOException | ClassNotFoundException ex1) {
-				ex1.printStackTrace();
-				return new MessageResponse("Irgendwos hot ned passt :("
-						+ ex1.getMessage());
-			} finally {
-				if (s != null) {
-					try {
-						s.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				if (outputStream != null) {
-					try {
-						outputStream.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				if (inputStream != null) {
-					try {
-						inputStream.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
+		synchronized (fileservers) {
+			if(this.fileservers.isEmpty()) {
+				return new MessageResponse("No FileServer connected");
 			}
-		}
-		return new MessageResponse("Upload was not successful");
+			for(FileServerInfo temp : this.fileservers) {		
+				Object o = sendAndReceiveResponse(request, temp);
+			}
+			this.user.setCredits(this.user.getCredits()+ 2*request.getContent().length);
+			return new MessageResponse("Upload was successful");
+		}	
 	}
 
 	@Override
 	public MessageResponse logout() throws IOException {
 		this.user.setOnline(false);
-		return new MessageResponse("User" + user.getName() + "logged out");
+		this.user.setCredits(config.getInt(this.user.getName() + ".credits"));
+		return new MessageResponse("Successfully logged out.");
 	}
 
 	@Override
@@ -283,9 +160,10 @@ public class Proxy implements IProxy, Runnable, Closeable {
 				}
 			} catch(EOFException e) {
 				return;
-			} catch (IOException | ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (IOException e) {
+				return;
+			} catch (ClassNotFoundException e) {
+				System.err.println("ClassNotFoundException occurred during reading and writing in Proxy");
 			}
 		}
 	}
@@ -312,34 +190,90 @@ public class Proxy implements IProxy, Runnable, Closeable {
 				return upload(uploadRequest);
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("InstanceOf of the Request in Proxy went wrong");
 		}
 		return new MessageResponse("Unsupported Request");
 
 	}
 
 	private FileServerInfo getLowestUsageFS() {
-		int pointer = 0;
-		long usage = 0;
-		FileServerInfo fs = null;
-		for (FileServerInfo f : this.fileservers) {
-			if (pointer == 0) {
-				usage = f.getUsage();
-				fs = f;
+		if(fileservers.isEmpty()) {
+			return null;
+		}
+		synchronized (fileservers) {
+			FileServerInfo lastFs = null;
+			for (FileServerInfo f : this.fileservers) {
+				if (f.isOnline() && lastFs == null) {
+					lastFs = f;
+				}
+				if (f.isOnline() && lastFs.getUsage() > f.getUsage()) {
+					lastFs = f;
+				}
 			}
-			if (usage < f.getUsage()) {
-				usage = f.getUsage();
-				fs = f;
+			return lastFs;
+		}
+
+	}
+	private Response sendAndReceiveResponse(Request request, FileServerInfo fs) {
+		Socket socketFS = null;
+		ObjectOutputStream outputFsStream = null;
+		ObjectInputStream inputFsStream = null;
+
+		try {
+			socketFS = new Socket(fs.getAddress(), fs.getPort());
+
+			outputFsStream = new ObjectOutputStream(socketFS.getOutputStream());
+			inputFsStream = new ObjectInputStream(socketFS.getInputStream());
+
+			outputFsStream.writeObject(request);
+
+			Object o = inputFsStream.readObject();
+			if(o instanceof Response) {
+				return (Response) o;
+			}
+
+		} catch (ClassNotFoundException e) {
+			System.err.println("IOException occured during the Upload in Proxy");
+		} catch (IOException e) {
+			System.err.println("IOException occured during the Upload in Proxy");
+		} finally {
+			if (socketFS != null) {
+				try {
+					socketFS.close();
+				} catch (IOException e) {
+					System.err.println("Error occured while closing the ObjectOutputStream in Proxy");
+				}
+			}
+			if (outputFsStream != null) {
+				try {
+					outputFsStream.close();
+				} catch (IOException e) {
+					System.err.println("Error occured while closing the ObjectOutputStream in Proxy");
+				}
+			}
+			if (inputFsStream != null) {
+				try {
+					inputFsStream.close();
+				} catch (IOException e) {
+					System.err.println("Error occured while closing the ObjectInputStream in Proxy");
+				}
 			}
 		}
-		return fs;
-	}
+		return new MessageResponse("No correct answer from FileServer to the Proxy");
 
+	}
 	@Override
 	public void close() throws IOException {
-
-		// this.socket.close();
-		// this.shell.close();
+		if(this.inputStream != null) {
+			this.inputStream.close();
+		}
+		if(this.outputStream != null) {
+			this.outputStream.close();
+		}
+		if(this.socket != null) {
+			if(!socket.isClosed()) {
+				this.socket.close();
+			}
+		}
 	}
 }

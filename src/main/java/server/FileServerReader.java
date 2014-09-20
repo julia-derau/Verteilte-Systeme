@@ -15,7 +15,6 @@ public class FileServerReader {
 	private Config config; 
 	
 	public FileServerReader(Config config) {
-		//TODO Parameter auslesen und typisiert abspeichern
 		this.config = config;
 	}
 	

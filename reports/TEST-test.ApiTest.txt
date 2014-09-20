@@ -1,0 +1,281 @@
+Testsuite: test.ApiTest
+Tests run: 1, Failures: 0, Errors: 1, Time elapsed: 105,231 sec
+------------- Standard Output ---------------
+00_login_test 2.txt
+17:12:40.181		client> !login alice 12345
+17:12:40.304		client: !login success
+17:12:40.679		client> !credits
+17:12:40.715		client: !credits 200
+17:12:41.180		client> !login bill 23456
+17:12:41.181		client: !login success
+17:12:41.681		proxy> !users
+17:12:41.686		proxy:
+17:12:41.686		1. alice           online            200
+17:12:41.686		2. bill            online            200
+17:12:42.181		proxy> !exit
+17:12:42.184		proxy: Shell is terminated
+17:12:42.186		proxy: Shell closed
+17:12:42.682		client> !exit
+17:12:42.684		client: Client is terminated
+17:12:42.685		client: Shell closed
+17:12:43.183		fs1> !exit
+17:12:43.184		fs1: Shell is terminated
+17:12:43.185		fs1: Shell closed
+################################################################################
+00_login_test.txt
+17:12:49.732		client> !login alice 12345
+17:12:49.735		client: !login success
+17:12:50.233		client> !credits
+17:12:50.234		client: !credits 200
+17:12:50.734		proxy> !users
+17:12:50.736		proxy:
+17:12:50.736		1. alice           online            200
+17:12:50.736		2. bill            offline           200
+17:12:51.235		proxy> !exit
+17:12:51.238		proxy: Shell is terminated
+17:12:51.239		proxy: Shell closed
+17:12:51.737		client> !exit
+17:12:51.738		client: Client is terminated
+17:12:51.739		client: Shell closed
+17:12:52.238		fs1> !exit
+17:12:52.240		fs1: Shell is terminated
+17:12:52.241		fs1: Shell closed
+################################################################################
+01_bug.txt
+17:12:58.785		client> !list
+17:12:58.786		client: You are not logged in
+17:12:59.286		proxy> !exit
+17:12:59.287		proxy: Shell is terminated
+17:12:59.288		proxy: Shell closed
+17:12:59.786		client> !exit
+17:12:59.786		client: Client is terminated
+17:12:59.787		client: Shell closed
+17:13:00.287		fs1> !exit
+17:13:00.288		fs1: Shell is terminated
+17:13:00.289		fs1: Shell closed
+################################################################################
+01_simpletest_sim_test.txt
+17:13:06.833		client> !login alice 12345
+17:13:06.838		client: !login success
+17:13:07.334		client> !credits
+17:13:07.336		client: !credits 200
+17:13:07.835		client> !download short.txt
+17:13:07.955		client: !data dslab13
+17:13:08.336		client> !credits
+17:13:08.337		client: !credits 192
+17:13:08.836		client> !upload upload.txt
+17:13:08.884		client: File successfully uploaded.
+17:13:09.337		client> !credits
+17:13:09.337		client: !credits 292
+17:13:09.838		client> !logout
+17:13:09.840		client: Successfully logged out.
+17:13:10.338		proxy> !exit
+17:13:10.341		proxy: Shell is terminated
+17:13:10.342		proxy: Shell closed
+17:13:10.839		fs1> !exit
+17:13:10.842		fs1: Shell is terminated
+17:13:10.844		fs1: Shell closed
+17:13:11.340		client> !exit
+17:13:11.341		client: Client is terminated
+17:13:11.342		client: Shell closed
+################################################################################
+02_usecase_buy_credits_test.txt
+17:13:19.914		proxy> !users
+17:13:19.916		proxy:
+17:13:19.916		1. alice           offline           200
+17:13:19.916		2. bill            offline           200
+17:13:20.415		client> !login alice 12345
+17:13:20.417		client: !login success
+17:13:20.915		client> !credits
+17:13:20.917		client: !credits 200
+17:13:21.416		client> !list
+17:13:21.425		client:
+17:13:21.425		short.txt
+17:13:21.425		upload.txt
+17:13:21.425		long.txt
+17:13:21.916		client> !download short.txt
+17:13:21.964		client: !data dslab13
+17:13:22.418		proxy> !users
+17:13:22.420		proxy:
+17:13:22.420		1. alice           online            192
+17:13:22.420		2. bill            offline           200
+17:13:22.919		client> !credits
+17:13:22.920		client: !credits 192
+17:13:23.420		client> !download long.txt
+17:13:23.426		client: You don't have enough credits!
+17:13:23.921		client> !buy 1000
+17:13:23.960		client: !credits 1192
+17:13:24.422		client> !download long.txt
+17:13:24.466		client:
+17:13:24.466		!data ###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.466		###################################################################################################
+17:13:24.923		proxy> !users
+17:13:24.924		proxy:
+17:13:24.924		1. alice           online            192
+17:13:24.924		2. bill            offline           200
+17:13:25.423		client> !credits
+17:13:25.424		client: !credits 192
+17:13:25.924		client> !ls
+17:13:25.926		client:
+17:13:25.926		java.lang.IllegalArgumentException: Command '!ls' not registered.
+17:13:25.926			at cli.Shell.invoke(Shell.java:226)
+17:13:25.926			at cli.Shell.run(Shell.java:71)
+17:13:25.926			at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+17:13:25.926			at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+17:13:25.926			at java.lang.Thread.run(Thread.java:722)
+17:13:26.425		client> !upload upload.txt
+17:13:26.428		client: File successfully uploaded.
+17:13:26.926		proxy> !users
+17:13:26.927		proxy:
+17:13:26.927		1. alice           online            292
+17:13:26.927		2. bill            offline           200
+17:13:27.427		client> !credits
+17:13:27.429		client: !credits 292
+17:13:27.927		proxy> !fileservers
+17:13:27.970		proxy:
+17:13:27.970		1. 127.0.0.1       13012 online             50
+17:13:27.970		2. 127.0.0.1       13013 online           1008
+17:13:28.428		client> !logout
+17:13:28.429		client: Successfully logged out.
+17:13:28.929		client> !exit
+17:13:28.929		client: Client is terminated
+17:13:28.930		client: Shell closed
+17:13:29.430		fs1> !exit
+17:13:29.431		fs1: Shell is terminated
+17:13:29.432		fs1: Shell closed
+17:13:29.933		fs2> !exit
+17:13:29.935		fs2: Shell is terminated
+17:13:29.936		fs2: Shell closed
+17:13:30.434		proxy> !exit
+17:13:30.436		proxy: Shell is terminated
+17:13:30.437		proxy: Shell closed
+################################################################################
+03_usecase_multiclient_test.txt
+################################################################################
+04_filenotfound_test.txt
+17:13:36.979		client> !login alice 12345
+17:13:36.984		client: !login success
+17:13:37.480		client> !download notexistingfile.txt
+17:13:37.483		client: Wrong VersionResponse during Download in Proxy
+17:13:37.981		proxy> !exit
+17:13:37.982		proxy: Shell is terminated
+17:13:37.983		proxy: Shell closed
+17:13:38.481		client> !exit
+17:13:38.481		client: Client is terminated
+17:13:38.482		client: Shell closed
+17:13:38.982		fs1> !exit
+17:13:38.983		fs1: Shell is terminated
+17:13:38.983		fs1: Shell closed
+################################################################################
+05_fileserver_went_offline_test.txt
+17:13:45.509		client> !login alice 12345
+17:13:45.511		client: !login success
+17:13:46.011		client> !credits
+17:13:46.014		client: !credits 200
+17:13:46.511		proxy> !users
+17:13:46.513		proxy:
+17:13:46.513		1. alice           online            200
+17:13:46.513		2. bill            offline           200
+17:13:47.012		client> !download short.txt
+17:13:47.053		client: !data dslab13
+17:13:47.513		fs1> !exit
+17:13:47.514		fs1: Shell is terminated
+17:13:47.515		fs1: Shell closed
+17:13:48.014		client> !download long.txt
+17:13:48.017		client: Wrong VersionResponse during Download in Proxy
+17:13:48.515		proxy> !exit
+17:13:48.515		proxy: Shell is terminated
+17:13:48.516		proxy: Shell closed
+17:13:49.015		client> !exit
+17:13:49.016		client: Client is terminated
+17:13:49.017		client: Shell closed
+################################################################################
+06_fss_inconsistant_test.txt
+17:13:55.548		client> !login alice 12345
+17:13:55.550		client: !login success
+17:13:56.049		client> !download short.txt
+17:13:56.062		client: !data dslab13
+17:13:56.550		client> !upload data.txt
+17:13:56.551		client: File is not there
+17:13:57.051		client> !credits
+17:13:57.053		client: !credits 192
+17:13:59.555		client> !download data.txt
+17:13:59.557		client: Wrong VersionResponse during Download in Proxy
+17:14:00.056		fs2> !exit
+17:14:00.059		fs2: Shell is terminated
+17:14:00.060		fs2: Shell closed
+17:14:00.556		fs1> !exit
+17:14:00.558		fs1: Shell is terminated
+17:14:00.559		fs1: Shell closed
+17:14:01.057		proxy> !exit
+17:14:01.060		proxy: Shell is terminated
+17:14:01.061		proxy: Shell closed
+17:14:01.558		client> !exit
+17:14:01.559		client: Client is terminated
+17:14:01.559		client: Shell closed
+################################################################################
+07_startup-PCF_shutdown-FPC_test.txt
+17:14:08.101		client> !login bill 23456
+17:14:08.105		client: !login success
+17:14:08.601		client> !download short.txt
+17:14:08.622		client: !data dslab13
+17:14:09.102		fs1> !exit
+17:14:09.103		fs1: Shell is terminated
+17:14:09.104		fs1: Shell closed
+17:14:09.603		proxy> !exit
+17:14:09.604		proxy: Shell is terminated
+17:14:09.604		proxy: Shell closed
+17:14:10.104		client> !exit
+17:14:10.104		client: Client is terminated
+17:14:10.105		client: Shell closed
+################################################################################
+08_startup-FPC_shutdown-PCF_test.txt
+17:14:16.647		client> !login bill 23456
+17:14:16.649		client: !login success
+17:14:17.147		client> !download short.txt
+17:14:17.156		client: !data dslab13
+17:14:17.648		proxy> !exit
+17:14:17.649		proxy: Shell is terminated
+17:14:17.650		proxy: Shell closed
+17:14:18.148		client> !exit
+17:14:18.149		client: Client is terminated
+17:14:18.149		client: Shell closed
+17:14:18.649		fs1> !exit
+17:14:18.650		fs1: Shell is terminated
+17:14:18.651		fs1: Shell closed
+################################################################################
+09_startup-CFP_shutdown-CFP_test.txt
+------------- ---------------- ---------------
+------------- Standard Error -----------------
+IOException occured during the Upload in Proxy
+------------- ---------------- ---------------
+
+Testcase: test took 105,193 sec
+	Caused an ERROR
+null
+java.lang.reflect.InvocationTargetException
+	at test.ApiTest.test(ApiTest.java:83)
+	at org.eclipse.ant.internal.launching.remote.EclipseDefaultExecutor.executeTargets(EclipseDefaultExecutor.java:32)
+	at org.eclipse.ant.internal.launching.remote.InternalAntRunner.run(InternalAntRunner.java:424)
+	at org.eclipse.ant.internal.launching.remote.InternalAntRunner.main(InternalAntRunner.java:138)
+Caused by: java.net.ConnectException: Connection refused
+	at java.net.PlainSocketImpl.socketConnect(Native Method)
+	at java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:339)
+	at java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:200)
+	at java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:182)
+	at java.net.SocksSocketImpl.connect(SocksSocketImpl.java:391)
+	at java.net.Socket.connect(Socket.java:579)
+	at java.net.Socket.connect(Socket.java:528)
+	at java.net.Socket.<init>(Socket.java:425)
+	at java.net.Socket.<init>(Socket.java:241)
+	at client.ClientCli.<init>(ClientCli.java:48)
+	at util.ComponentFactory.startClient(ComponentFactory.java:30)
+
